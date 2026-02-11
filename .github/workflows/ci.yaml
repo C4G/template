@@ -1,0 +1,74 @@
+name: Build and Lint Template Application
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        run: |
+          npm install -g pnpm@latest
+          pnpm --version
+
+      - name: Build and Test
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DATABASE_PW: ${{ secrets.DATABASE_PW }}
+          DATABASE_USER: ${{ secrets.DATABASE_USER }}
+          DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
+          DATABASE_HOST: ${{ secrets.DATABASE_HOST }}
+          DATABASE_PORT: ''
+          APP_PORT: ''
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
+          AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+        run: |
+          docker compose -f ./docker-compose.yml --profile production -p "template-pr-${PR_NUMBER}" up --build -d
+
+          # Wait for services to be healthy
+          echo "Waiting for services to start..."
+          for i in {1..60}; do
+            if docker compose -p "template-pr-${PR_NUMBER}" ps | grep -q "template-app.*healthy"; then
+              echo "Services are running!"
+              break
+            fi
+            status=$(docker compose -p "template-pr-${PR_NUMBER}" ps template-app 2>&1 || echo "error")
+            if [ $i -eq 60 ]; then
+              echo "Services failed to start"
+              echo "Final status: $status"
+              docker compose -p "template-pr-${PR_NUMBER}" logs
+              exit 1
+            fi
+            echo "Waiting... (attempt $i/60)"
+            sleep 2
+          done
+      - name: Clean up
+        if: always()
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          docker compose -p "template-pr-${PR_NUMBER}" -f ./docker-compose.yml down --volumes --remove-orphans || true
+          # Force remove any lingering containers and networks
+          docker ps -a --filter "name=template-pr-${PR_NUMBER}" -q | xargs -r docker rm -f || true
+          docker network ls --filter "name=template-pr-${PR_NUMBER}" -q | xargs -r docker network rm || true
+          rm -rf ${{ github.workspace }}/*

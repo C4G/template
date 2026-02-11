@@ -1,0 +1,86 @@
+services:
+  template-db:
+    image: postgres:17
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_PASSWORD=${DATABASE_PW}
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_DB=${DATABASE_NAME}
+    volumes:
+      - template-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Next.js application (production only)
+  template-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+        - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+    ports:
+      - "${APP_PORT-3001:}3000"
+    environment:
+      - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PW}@template-db:5432/${DATABASE_NAME}
+      - DATABASE_PW=${DATABASE_PW}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_HOST=template-db
+      - DATABASE_PORT=5432
+      - AUTH_SECRET=${AUTH_SECRET}
+      - AUTH_GOOGLE_ID=${AUTH_GOOGLE_ID}
+      - AUTH_GOOGLE_SECRET=${AUTH_GOOGLE_SECRET}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - AUTH_TRUST_HOST=${AUTH_TRUST_HOST:-true}
+    depends_on:
+      template-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    profiles:
+      - production
+
+  # Database migration container (production only)
+  template-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    environment:
+      - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PW}@template-db:5432/${DATABASE_NAME}
+      - DATABASE_PW=${DATABASE_PW}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_HOST=template-db
+      - DATABASE_PORT=5432
+    command: >
+      sh -c "
+        apk add --no-cache netcat-openbsd &&
+        echo 'Waiting for database to be ready...' &&
+        while ! nc -z template-db 5432; do
+          sleep 1
+        done &&
+        echo 'Database is ready, running migrations...' &&
+        pnpm exec prisma migrate deploy &&
+        echo 'Migrations completed successfully!'
+      "
+    depends_on:
+      template-db:
+        condition: service_healthy
+    profiles:
+      - production
+
+volumes:
+  template-db-data:

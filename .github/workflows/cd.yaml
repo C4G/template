@@ -1,0 +1,69 @@
+name: Deploy Template Application
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        run: |
+          npm install -g pnpm@latest
+          pnpm --version
+
+      - name: Deploy to c4g.dev server
+        run: |
+          touch .env
+          echo 'DATABASE_PW=${{ secrets.DATABASE_PW }}' >> .env
+          echo 'DATABASE_USER=${{ secrets.DATABASE_USER }}' >> .env
+          echo 'DATABASE_NAME=${{ secrets.DATABASE_NAME }}' >> .env
+          echo 'DATABASE_HOST=${{ secrets.DATABASE_HOST }}' >> .env
+          echo 'DATABASE_PORT=${{ secrets.DATABASE_PROD_PORT }}' >> .env
+          echo 'DATABASE_URL=${{ secrets.DATABASE_PROD_URL }}' >> .env
+          echo 'AUTH_SECRET=${{ secrets.AUTH_SECRET }}' >> .env
+          echo 'AUTH_GOOGLE_ID=${{ secrets.AUTH_GOOGLE_ID }}' >> .env
+          echo 'AUTH_GOOGLE_SECRET=${{ secrets.AUTH_GOOGLE_SECRET }}' >> .env
+          echo 'RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}' >> .env
+          echo 'NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}' >> .env
+          echo 'VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}' >> .env
+          echo 'NEXTAUTH_URL=https://template.c4g.dev' >> .env
+          echo 'AUTH_TRUST_HOST=true' >> .env
+
+          # Build and start Docker containers (will replace running ones)
+          docker compose --profile production up --build -d --remove-orphans
+
+          # Wait for services to be healthy
+          echo "Waiting for services to start..."
+          for i in {1..60}; do
+            if docker compose ps | grep -q "template-app.*healthy"; then
+              echo "Services are running successfully!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Services failed to start"
+              docker compose logs
+              exit 1
+            fi
+            echo "Waiting... (attempt $i/60)"
+            sleep 2
+          done
+
+          # Clean up old images from this project only
+          docker image prune -f --filter label=com.docker.compose.project=template
