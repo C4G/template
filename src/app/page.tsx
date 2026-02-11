@@ -10,7 +10,7 @@ export default function Home() {
         >
           readme
         </a>
-        &nbsp;to get started.
+        &nbsp;to get started. TEST UPDATE
       </p>
     </div>
   );
