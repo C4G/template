@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import { useToast } from '@/hooks/use-toast';
+import { useEffect } from 'react';
 
 export function ServiceWorkerRegistration() {
   const { toast } = useToast();
@@ -64,7 +64,7 @@ export function ServiceWorkerRegistration() {
         });
       }
     }
-  }, []);
+  }, [toast]);
 
   return null;
 }

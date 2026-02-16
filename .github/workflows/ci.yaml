@@ -27,6 +27,15 @@ jobs:
           npm install -g pnpm@latest
           pnpm --version
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint
+        run: pnpm lint
+
+      - name: Run tests
+        run: pnpm test
+
       - name: Build and Test
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
