@@ -10,7 +10,7 @@ services:
     volumes:
       - template-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -40,45 +40,22 @@ services:
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - AUTH_TRUST_HOST=${AUTH_TRUST_HOST:-true}
+    command: >
+      sh -c "
+        echo 'Running database migrations...' &&
+        ./node_modules/.bin/prisma migrate deploy &&
+        echo 'Migrations completed, starting application...' &&
+        node server.js
+      "
     depends_on:
-      template-migrate:
-        condition: service_completed_successfully
+      template-db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
-    profiles:
-      - production
-
-  # Database migration container (production only)
-  template-migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: builder
-    environment:
-      - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PW}@template-db:5432/${DATABASE_NAME}
-      - DATABASE_PW=${DATABASE_PW}
-      - DATABASE_USER=${DATABASE_USER}
-      - DATABASE_NAME=${DATABASE_NAME}
-      - DATABASE_HOST=template-db
-      - DATABASE_PORT=5432
-    command: >
-      sh -c "
-        apk add --no-cache netcat-openbsd &&
-        echo 'Waiting for database to be ready...' &&
-        while ! nc -z template-db 5432; do
-          sleep 1
-        done &&
-        echo 'Database is ready, running migrations...' &&
-        pnpm exec prisma migrate deploy &&
-        echo 'Migrations completed successfully!'
-      "
-    depends_on:
-      template-db:
-        condition: service_healthy
     profiles:
       - production
 
