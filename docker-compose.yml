@@ -15,6 +15,20 @@ services:
       timeout: 5s
       retries: 5
 
+  # Database migrations (production only)
+  template-migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrations
+    environment:
+      - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PW}@template-db:5432/${DATABASE_NAME}
+    restart: "no"
+    depends_on:
+      template-db:
+        condition: service_healthy
+    profiles:
+      - production
+
   # Next.js application (production only)
   template-app:
     build:
@@ -40,16 +54,12 @@ services:
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - AUTH_TRUST_HOST=${AUTH_TRUST_HOST:-true}
-    command: >
-      sh -c "
-        echo 'Running database migrations...' &&
-        ./node_modules/.bin/prisma migrate deploy &&
-        echo 'Migrations completed, starting application...' &&
-        node server.js
-      "
+    command: node server.js
     depends_on:
       template-db:
         condition: service_healthy
+      template-migrations:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
       interval: 10s

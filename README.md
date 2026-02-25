@@ -105,3 +105,67 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - [Resend](https://resend.com) - emails
 
 If you want to contribute to this template for future projects please work with the teaching staff. We welcome any technologies that could benefit the partners and speed to delivery for features.
+
+## Production Deployment
+
+The application uses Docker Compose for production deployments with an automated migration workflow:
+
+### Architecture
+
+- **Database**: PostgreSQL 17 with persistent volume storage
+- **Migrations**: Separate init container that runs database migrations before the app starts
+- **Application**: Next.js standalone server with optimized production build
+
+### Deployment Commands
+
+Build and start all services:
+
+```bash
+docker compose --profile production up -d --build
+```
+
+Check service status:
+
+```bash
+docker compose ps
+```
+
+View logs:
+
+```bash
+# All services
+docker compose logs
+
+# Specific service
+docker compose logs template-app
+docker compose logs template-migrations
+```
+
+Stop services:
+
+```bash
+docker compose --profile production down
+```
+
+Clean shutdown with volume and orphan container removal:
+
+```bash
+docker compose --profile production down --volumes --remove-orphans
+```
+
+### Migration Workflow
+
+1. **Database starts** and waits for healthy status
+2. **Migration container** runs `prisma migrate deploy` and exits
+3. **Application starts** only after migrations complete successfully
+
+The migration container (`template-migrations`) runs once per deployment and automatically exits after completion. Docker Compose handles cleanup of stopped containers on subsequent deployments.
+
+### Environment Variables
+
+All required environment variables must be set in your `.env` file before deployment. See `example.env` for the complete list. Key variables:
+
+- `DATABASE_*`: PostgreSQL connection settings
+- `AUTH_*`: NextAuth configuration
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`: Push notification keys
+- `RESEND_API_KEY`: Email service configuration
