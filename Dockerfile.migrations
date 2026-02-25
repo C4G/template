@@ -1,0 +1,30 @@
+# Dockerfile for running Prisma migrations
+# This is a separate, lightweight container that runs migrations before the app starts
+
+FROM node:24-alpine
+
+# Enable corepack and prepare pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Create nextjs user for consistency
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy only files needed for migrations
+COPY --chown=nextjs:nodejs package.json pnpm-lock.yaml ./
+COPY --chown=nextjs:nodejs prisma ./prisma
+COPY --chown=nextjs:nodejs prisma.config.ts ./prisma.config.ts
+
+# Install production dependencies (skip postinstall to avoid prisma generate before CLI is available)
+# Then install prisma CLI from devDependencies and generate client
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts && \
+    pnpm add -D prisma && \
+    pnpm exec prisma generate
+
+# Switch to non-root user
+USER nextjs
+
+# Run migrations
+CMD ["pnpm", "prisma", "migrate", "deploy"]
