@@ -78,7 +78,7 @@ export default async function RootLayout({
         </ThemeProvider>
         <Script
           src='https://analytics.c4g.dev/script.js'
-          data-website-id='46c7075d-0e35-4b6f-ae3c-2973968cf8d4'
+          data-website-id='96d0af65-283a-42a0-8074-099c8b77ff14'
         />
       </body>
     </html>
