@@ -1,0 +1,20 @@
+Dockerfile
+  s_3f1d762215aec9::t_e834cf0eaca60c 16-18
+  s_3f1d762215aec9::t_893416540f7f80 36-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "31ddb902f8c72fdb45dd25429fa51a82706e2958",
+  "prompts": {},
+  "sessions": {
+    "s_3f1d762215aec9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a0b67643-2204-4991-9bec-434b0107d5f3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Justin McLellan <justin.mclellan99@gmail.com>"
+    }
+  }
+}
