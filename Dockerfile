@@ -13,8 +13,9 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 
 # Install dependencies
-RUN corepack enable && corepack prepare pnpm@latest --activate && \
-    pnpm install --frozen-lockfile --prod
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    corepack enable && corepack prepare pnpm@latest --activate && \
+    pnpm install --frozen-lockfile --prod --store-dir=/pnpm/store
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -32,8 +33,9 @@ ENV NEXTAUTH_URL=$NEXTAUTH_URL
 COPY package.json pnpm-lock.yaml ./
 
 # Install ALL dependencies (skip postinstall to avoid prisma generate before schema exists)
-RUN corepack enable && corepack prepare pnpm@latest --activate && \
-    pnpm install --frozen-lockfile --ignore-scripts
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    corepack enable && corepack prepare pnpm@latest --activate && \
+    pnpm install --frozen-lockfile --ignore-scripts --store-dir=/pnpm/store
 
 # Copy source code
 COPY . .
