@@ -1,0 +1,109 @@
+package.json
+  s_f78e27a3261897::t_3c7f5a53500708 41
+src/components/layout/user-menu.tsx
+  s_f78e27a3261897::t_159cef92406f2e 23
+  s_f78e27a3261897::t_2e0f86339fd6fc 42
+  s_f78e27a3261897::t_74053925f98014 108,113-115
+  s_f78e27a3261897::t_af1e26d749f341 13,15
+src/test/mocks.tsx
+  s_f78e27a3261897::t_ccbb238589358e 1
+  s_f78e27a3261897::t_50263d71f0747f 134-137
+  s_f78e27a3261897::t_2c157f801171e4 10
+  s_f78e27a3261897::t_add95ac1659258 25-26,28-39,44,46-51,53-60
+src/test/test-utils.tsx
+  s_f78e27a3261897::t_04ed5452e2ad6e 6,8-10,14-17,19-20
+Dockerfile
+  s_f78e27a3261897::t_7e51405f1672f8 26,30
+prisma/migrations/20260705000000_better_auth/migration.sql
+  s_f78e27a3261897::t_bf9f663d077029 15-16
+  s_f78e27a3261897::t_a5db7e5cfe9556 1-14,17-101
+src/app/api/notifications/send/route.ts
+  s_f78e27a3261897::t_51c573f0cf914e 1,9
+src/app/signin/page.tsx
+  s_f78e27a3261897::t_1795fd03602d3f 1-105
+src/components/contexts/impersonation-context.tsx
+  s_f78e27a3261897::t_0334bda42c9b22 5
+  s_f78e27a3261897::t_1fdbaccdbb166b 59
+  s_f78e27a3261897::t_c24fcec64f1560 25
+  s_f78e27a3261897::t_28d83f4e5da9bd 79
+src/components/layout/header.tsx
+  s_f78e27a3261897::t_0a8f8e722c9f6e 5,9
+  s_f78e27a3261897::t_5bfbbcbd33cf21 22,30
+src/test/setup.ts
+  s_f78e27a3261897::t_8bb02cc2c866fc 20,22-23
+README.md
+  s_f78e27a3261897::t_7e51405f1672f8 7,103,169
+example.env
+  s_f78e27a3261897::t_7841a72e71eae3 10-12
+src/app/api/auth/[...all]/route.ts
+  s_f78e27a3261897::t_3a39920cdface9 1-4
+src/app/api/export-csv/route.ts
+  s_f78e27a3261897::t_51c573f0cf914e 1,33
+src/app/signup/page.tsx
+  s_f78e27a3261897::t_4dd0853c40e63c 1-117
+src/app/api/impersonate/status/route.ts
+  s_f78e27a3261897::t_51c573f0cf914e 1,8
+src/app/api/impersonate/route.ts
+  s_f78e27a3261897::t_51c573f0cf914e 1,8,77
+prisma/seed/users.mjs
+  s_f78e27a3261897::t_c425780b5e2a4c 29-30,32,34-43,45-47,52
+  s_f78e27a3261897::t_ad370f00c27850 20
+prisma/schema/user.prisma
+  s_f78e27a3261897::t_29a7a294c5b9ff 3,5
+src/app/layout.tsx
+  s_f78e27a3261897::t_95bc0956e09d2b 53,64-70
+src/lib/auth.ts
+  s_f78e27a3261897::t_6ca5924772caed 3-54,69-70,79-88,92,96-112
+src/components/layout/edit-profile-dialog.tsx
+  s_f78e27a3261897::t_48a71317e594c8 25
+  s_f78e27a3261897::t_c75adf35e7ee73 46,48-49
+  s_f78e27a3261897::t_a315a9421b8074 4
+prisma/schema/session.prisma
+  s_f78e27a3261897::t_8bb4d85c83e0f3 2-8
+src/app/dashboard/page.tsx
+  s_f78e27a3261897::t_51c573f0cf914e 1,11
+src/app/users/users-grid.tsx
+  s_f78e27a3261897::t_058153776fb846 21
+docker-compose.yml
+  s_f78e27a3261897::t_7e51405f1672f8 39,55
+src/lib/auth-client.ts
+  s_f78e27a3261897::t_ced97c9cec8844 1-9
+src/app/api/send/route.ts
+  s_f78e27a3261897::t_51c573f0cf914e 1,24
+src/app/users/page.tsx
+  s_f78e27a3261897::t_51c573f0cf914e 1,12
+src/hooks/use-push-notifications.ts
+  s_f78e27a3261897::t_ba7cee49a4ebf1 3
+src/app/users/page.test.tsx
+  s_f78e27a3261897::t_288d36ed95576a 22,39,53,62,69
+  s_f78e27a3261897::t_9c32ad75f14b54 17-18
+  s_f78e27a3261897::t_d30e2810856e50 7,9
+src/app/api/users/route.ts
+  s_f78e27a3261897::t_51c573f0cf914e 1,52,132,182,236
+src/app/users/users-grid.test.tsx
+  s_f78e27a3261897::t_650654e947f92b 42-44
+src/app/api/notifications/subscribe/route.ts
+  s_f78e27a3261897::t_51c573f0cf914e 1,9,44
+prisma/schema/account.prisma
+  s_f78e27a3261897::t_ab3154c046764d 2-12,19
+prisma/schema/verification.prisma
+  s_f78e27a3261897::t_4591abd31a8244 1-9
+pnpm-lock.yaml
+  s_f78e27a3261897::t_79f808192389b1 50-52,134,149,179,289-367,908-911,916-919,936-938,2257-2326,3211-3212,3266-3269,3498-3501,3972-3974,4018-4020,4669-4722,4910,4912,5104-5105,5108-5109,5124,6168,6175,6374-6414,6567,6570,7248,7250,7463,7471,7475,7477,7479,7491,7533-7534,7746-7747,8175-8176,8220-8221,8653,8677,8709,8711
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b7bae2577b1ea3c6ea77ebe5d9b365b9c164d55d",
+  "prompts": {},
+  "sessions": {
+    "s_f78e27a3261897": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1343fbce-9782-4e8d-aef3-91934a6cca74",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Justin McLellan <justin.mclellan99@gmail.com>"
+    }
+  }
+}
