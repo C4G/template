@@ -17,10 +17,10 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
-// Mock fetch globally for NextAuth session requests
+// Mock fetch globally for auth session requests
 global.fetch = vi.fn((url) => {
-  // Mock NextAuth session endpoint
-  if (typeof url === 'string' && url.includes('/api/auth/session')) {
+  // Mock the Better Auth session endpoint
+  if (typeof url === 'string' && url.includes('/api/auth/get-session')) {
     return Promise.resolve({
       ok: true,
       status: 200,
@@ -47,7 +47,6 @@ beforeAll(() => {
     const message = args[0]?.toString() || '';
     if (
       message.includes('Not wrapped in act(') ||
-      message.includes('update to SessionProvider') ||
       message.includes('ClientFetchError') ||
       message.includes('Failed to parse URL') ||
       message.includes('Missing `Description`') ||

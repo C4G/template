@@ -1,5 +1,5 @@
+import type { Session } from '@/lib/auth';
 import { User } from '@prisma/client';
-import { Session } from 'next-auth';
 import { vi } from 'vitest';
 
 // Mock user factory
@@ -7,7 +7,7 @@ export const createMockUser = (overrides?: Partial<User>): User => ({
   id: 'user-123',
   name: 'Test User',
   email: 'test@example.com',
-  emailVerified: null,
+  emailVerified: false,
   image: null,
   role: null,
   pushSubscription: null,
@@ -22,17 +22,42 @@ export const createMockSession = (overrides?: Partial<Session>): Session => ({
     id: 'user-123',
     name: 'Test User',
     email: 'test@example.com',
+    emailVerified: false,
+    image: null,
     role: 'ADMIN',
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
   },
-  expires: '2025-12-31',
+  session: {
+    id: 'session-123',
+    token: 'session-token-123',
+    userId: 'user-123',
+    expiresAt: new Date('2025-12-31'),
+    ipAddress: null,
+    userAgent: null,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+  },
   ...overrides,
 });
 
-// Mock next-auth
+// Mock the Better Auth client
 export const mockUseSession = vi.fn();
-vi.mock('next-auth/react', () => ({
+export const mockSignOut = vi.fn();
+export const mockSignInEmail = vi.fn();
+export const mockSignInSocial = vi.fn();
+export const mockSignUpEmail = vi.fn();
+vi.mock('@/lib/auth-client', () => ({
+  authClient: {},
   useSession: () => mockUseSession(),
-  SessionProvider: ({ children }: { children: React.ReactNode }) => children,
+  signOut: (...args: unknown[]) => mockSignOut(...args),
+  signIn: {
+    email: (...args: unknown[]) => mockSignInEmail(...args),
+    social: (...args: unknown[]) => mockSignInSocial(...args),
+  },
+  signUp: {
+    email: (...args: unknown[]) => mockSignUpEmail(...args),
+  },
 }));
 
 // Mock next/navigation
@@ -106,6 +131,10 @@ vi.mock('@/hooks/use-is-dark-theme', () => ({
 // Reset all mocks helper
 export const resetAllMocks = () => {
   mockUseSession.mockReset();
+  mockSignOut.mockReset();
+  mockSignInEmail.mockReset();
+  mockSignInSocial.mockReset();
+  mockSignUpEmail.mockReset();
   mockPush.mockReset();
   mockReplace.mockReset();
   mockRefresh.mockReset();

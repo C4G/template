@@ -36,7 +36,7 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
-        - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+        - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
     ports:
       - "${APP_PORT-3001:}3000"
     environment:
@@ -52,8 +52,7 @@ services:
       - RESEND_API_KEY=${RESEND_API_KEY}
       - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
-      - AUTH_TRUST_HOST=${AUTH_TRUST_HOST:-true}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
     command: node server.js
     depends_on:
       template-db:

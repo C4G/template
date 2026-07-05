@@ -38,9 +38,10 @@ describe('UsersGrid', () => {
           email: 'admin@example.com',
           role: 'ADMIN',
         },
-        expires: '2025-12-31',
       },
-      status: 'authenticated',
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
     });
 
     // Stub fetch response

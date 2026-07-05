@@ -4,9 +4,7 @@ import { Header } from '@/components/layout/header';
 import { ServiceWorkerRegistration } from '@/components/layout/service-worker-registration';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { auth } from '@/lib/auth';
 import type { Metadata, Viewport } from 'next';
-import { SessionProvider } from 'next-auth/react';
 import localFont from 'next/font/local';
 import Script from 'next/script';
 import './globals.css';
@@ -52,29 +50,24 @@ export const viewport: Viewport = {
   themeColor: '#000000',
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
   return (
     <html lang='en' suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider attribute='class' defaultTheme='system' enableSystem>
-          <SessionProvider session={session}>
-            <ImpersonationProvider>
-              <ServiceWorkerRegistration />
-              <Header />
-              <div className='mt-16 min-h-[calc(100dvh-8.4rem)]'>
-                {children}
-              </div>
-              <Footer />
-              <Toaster />
-            </ImpersonationProvider>
-          </SessionProvider>
+          <ImpersonationProvider>
+            <ServiceWorkerRegistration />
+            <Header />
+            <div className='mt-16 min-h-[calc(100dvh-8.4rem)]'>{children}</div>
+            <Footer />
+            <Toaster />
+          </ImpersonationProvider>
         </ThemeProvider>
         <Script
           src='https://analytics.c4g.dev/script.js'

@@ -18,7 +18,7 @@ import {
   type SortDirection,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/auth-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DeleteUserDialog } from './DeleteUserDialog';
 import { EmailDialog } from './EmailDialog';

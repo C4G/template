@@ -23,11 +23,11 @@ WORKDIR /app
 
 # Declare build arguments for Next.js public variables
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
-ARG NEXTAUTH_URL
+ARG BETTER_AUTH_URL
 
 # Set environment variables from build args
 ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
-ENV NEXTAUTH_URL=$NEXTAUTH_URL
+ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./

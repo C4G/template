@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { UsersGrid } from './users-grid';
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function UsersPage() {
-  const session = await auth();
+  const session = await getSession();
 
   if (session?.user?.role !== 'ADMIN') {
     redirect('/');
