@@ -2,7 +2,7 @@
 
 import { toast } from '@/hooks/use-toast';
 import { User } from '@prisma/client';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/auth-client';
 import { createContext, useContext, useEffect, useState } from 'react';
 
 interface ImpersonationContextType {
@@ -22,7 +22,7 @@ export function ImpersonationProvider({
   children: React.ReactNode;
 }) {
   const [impersonatedUser, setImpersonatedUser] = useState<User | null>(null);
-  const { data: session, update } = useSession();
+  const { data: session, refetch } = useSession();
 
   // Check for impersonation status on mount only if user is authenticated
   useEffect(() => {
@@ -56,7 +56,7 @@ export function ImpersonationProvider({
         setImpersonatedUser(data.impersonatedUser);
 
         // Force session refresh to update the UI
-        await update();
+        refetch();
       } else {
         throw new Error('Failed to start impersonation');
       }
@@ -76,7 +76,7 @@ export function ImpersonationProvider({
         setImpersonatedUser(null);
 
         // Force session refresh to update the UI
-        await update();
+        refetch();
 
         toast({
           title: 'Impersonation Stopped',

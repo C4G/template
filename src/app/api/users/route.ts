@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import {
   convertFilterModelToPrisma,
   convertSortModelToPrisma,
@@ -49,7 +49,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * }
  */
 export async function GET(request: NextRequest) {
-  const session = await auth();
+  const session = await getSession();
 
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
  * }
  */
 export async function POST(req: Request) {
-  const session = await auth();
+  const session = await getSession();
 
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -179,7 +179,7 @@ export async function POST(req: Request) {
  * }
  */
 export async function PUT(req: Request) {
-  const session = await auth();
+  const session = await getSession();
 
   if (!session || !session.user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -233,7 +233,7 @@ export async function PUT(req: Request) {
  * // 404: { "error": "User not found" }
  */
 export async function DELETE(req: Request) {
-  const session = await auth();
+  const session = await getSession();
 
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

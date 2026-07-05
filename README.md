@@ -4,7 +4,7 @@
 
 The purpose of this repository is to proved a template for a base starting point for C4G course projects. This template is not mandatory, but it captures the needs of a typical C4G project that uses a website and a database. A team that uses the template for building their project can also use it to meet course reporting requirements. Features include:
 
-- Authentication using google with 2 provided test accounts
+- Authentication with email/password and Google (2 test accounts provided)
 - CI/CD which will deploy the application and DB to the [c4g.dev](https://c4g.dev) server using your applications sub-domain.
 - A user management page for `ADMIN` users. Base roles are `ADMIN` and `STAFF`.
 - Project specific deliverable pages to quickly update as we progress through the course. Found by clicking the `Team` link in the footer of the application.
@@ -100,7 +100,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - [Shadcn](https://ui.shadcn.com/) - UI component library
 - [RadixUI](https://www.radix-ui.com/) - UI component library
 - [Lucide-React](https://lucide.dev/guide/packages/lucide-react) - UI icons
-- [Next-Auth](https://authjs.dev/) - authentication with google
+- [Better Auth](https://better-auth.com/) - authentication with email/password and google
 - [Ag-Grid](https://www.ag-grid.com/) - grid / table component
 - [Resend](https://resend.com) - emails
 
@@ -166,6 +166,6 @@ The migration container (`template-migrations`) runs once per deployment and aut
 All required environment variables must be set in your `.env` file before deployment. See `example.env` for the complete list. Key variables:
 
 - `DATABASE_*`: PostgreSQL connection settings
-- `AUTH_*`: NextAuth configuration
+- `AUTH_*` / `BETTER_AUTH_URL`: Better Auth configuration
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`: Push notification keys
 - `RESEND_API_KEY`: Email service configuration

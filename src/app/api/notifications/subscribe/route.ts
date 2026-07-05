@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { ensureWebPushConfigured, publicKey } from '@/lib/web-push';
 import { NextRequest, NextResponse } from 'next/server';
@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(request: NextRequest) {
   try {
     ensureWebPushConfigured();
-    const session = await auth();
+    const session = await getSession();
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE() {
   try {
-    const session = await auth();
+    const session = await getSession();
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

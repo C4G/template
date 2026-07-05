@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { convertFilterModelToPrisma } from '@/lib/pagination';
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
@@ -30,7 +30,7 @@ function isPrismaModel(model: unknown): model is PrismaModel {
  * Returns a CSV file as an attachment.
  */
 export async function POST(req: NextRequest) {
-  const session = await auth();
+  const session = await getSession();
 
   if (session?.user?.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });

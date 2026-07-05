@@ -10,8 +10,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useImpersonation } from '@/components/contexts/impersonation-context';
 import { DropdownMenuSeparator } from '@radix-ui/react-dropdown-menu';
+import { signOut, useSession } from '@/lib/auth-client';
 import { Bell, LogOut, UserCog, UserX } from 'lucide-react';
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { EditProfileDialog } from './edit-profile-dialog';
 import { NotificationSettings } from './notification-settings';
@@ -19,6 +20,7 @@ import { ThemeSwitcher } from './theme-switcher';
 import { useToast } from '@/hooks/use-toast';
 
 export function UserMenu() {
+  const router = useRouter();
   const { data: session } = useSession();
   const { isImpersonating, stopImpersonation } = useImpersonation();
   const { toast } = useToast();
@@ -37,7 +39,7 @@ export function UserMenu() {
   };
 
   if (!session) {
-    return <Button onClick={() => signIn()}>Sign In</Button>;
+    return <Button onClick={() => router.push('/signin')}>Sign In</Button>;
   }
 
   const userInitials = session.user?.name
@@ -103,12 +105,14 @@ export function UserMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className='cursor-pointer'
-            onSelect={() => {
+            onSelect={async () => {
               toast({
                 title: 'Signed out',
                 description: 'You have been successfully logged out.',
               });
-              signOut({ callbackUrl: '/' });
+              await signOut();
+              router.push('/');
+              router.refresh();
             }}
           >
             <LogOut className='h-4 w-4' />

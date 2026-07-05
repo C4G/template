@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +22,7 @@ export function EditProfileDialog({
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const { data: session, update } = useSession();
+  const { data: session, refetch } = useSession();
   const [name, setName] = useState(session?.user?.name || '');
   const [email, setEmail] = useState(session?.user?.email || '');
   const [isLoading, setIsLoading] = useState(false);
@@ -43,9 +43,10 @@ export function EditProfileDialog({
         throw new Error('Failed to update profile');
       }
 
-      const updatedUser = await response.json();
+      await response.json();
 
-      await update({ name: updatedUser.name, email: updatedUser.email });
+      // Session data is read from the database, so a refetch picks up the edit
+      refetch();
 
       toast({
         title: 'Profile updated',
