@@ -1,0 +1,19 @@
+docker-compose.yml
+  s_5147d19989bab5::t_efe3fa51977fbb 14,16-18,66,68,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "117538ddae9e93d5b5de2ce0a6180cbfed0eb750",
+  "prompts": {},
+  "sessions": {
+    "s_5147d19989bab5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8fc4475c-ef97-46a5-bf62-43b8629760ab",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Justin McLellan <justin.mclellan99@gmail.com>"
+    }
+  }
+}
