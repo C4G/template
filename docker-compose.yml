@@ -11,9 +11,11 @@ services:
       - template-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
-      interval: 5s
+      interval: 2m
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
 
   # Database migrations (production only)
   template-migrations:
@@ -61,10 +63,11 @@ services:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
-      interval: 10s
+      interval: 2m
       timeout: 5s
-      retries: 5
+      retries: 3
       start_period: 30s
+      start_interval: 5s
     profiles:
       - production
 
