@@ -77,7 +77,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Manual Updates after cloning the template (by C4G staff)
 
-1. Replace `template` in many files to your project name.
+1. Replace `template` in many files to your project name. This includes the
+   `ghcr.io/c4g/template-*` image names in `docker-compose.yml` and `IMAGE_BASE`
+   in `.github/workflows/publish.yaml`, plus a `COOLIFY_APP_UUID` repository
+   variable pointing at the new project's Coolify application.
 2. Setup oauth settings in [GCP](https://console.cloud.google.com/apis/credentials?project=c4g-template)
 3. Setup nginx configuration, and re-run SSL cert on [C4G Server](https://c4g.dev).
 4. Generate VAPID keys for PWA setup [Generator](https://vapidkeys.com/)
@@ -113,15 +116,102 @@ The application uses Docker Compose for production deployments with an automated
 ### Architecture
 
 - **Database**: PostgreSQL 17 with persistent volume storage
-- **Migrations**: Separate init container that runs database migrations before the app starts
+- **Migrations**: Init container that runs database migrations before the app
+  starts, from the same image as the app
 - **Application**: Next.js standalone server with optimized production build
+
+### Image Publishing (CD)
+
+`.github/workflows/publish.yaml` runs on every push to `main` (and on manual
+dispatch). It builds one image, pushes it to GHCR, and then triggers a Coolify
+deployment:
+
+- `ghcr.io/c4g/template:latest` and `:<commit-sha>`
+
+`docker-compose.yml` references that published image and has **no `build:`
+keys**, which is what keeps the shared Coolify host from compiling the
+application on every deploy — it only pulls and restarts. The deploy is
+triggered from the workflow rather than by Coolify's git webhook so that
+Coolify cannot pull `:latest` before the new image has finished uploading.
+
+### One image, both services
+
+`template-migrations` and `template-app` run the **same image** with different
+commands. The image ships the Prisma CLI (the `migrator` stage in `Dockerfile`
+installs it on its own), so the migration step needs nothing extra:
+
+```yaml
+template-migrations:
+  image: ghcr.io/c4g/template:${IMAGE_TAG:-latest}
+  command: ['node', '/node_modules/prisma/build/index.js', 'migrate', 'deploy']
+```
+
+The ordering guarantee is unchanged — the app still waits on
+`service_completed_successfully`, so it starts only after migrations exit 0.
+
+The migration tooling is installed with **npm**, not pnpm, and lands at
+`/node_modules` rather than `/app/node_modules`. Both details are load-bearing:
+pnpm's symlink farm does not survive a `COPY` between stages, and the Next.js
+standalone output contains symlinked packages, so copying a directory over
+`/app/node_modules` fails with `cannot copy to non-directory`. `/node_modules`
+is the last place Node looks when resolving from `/app`, so `prisma.config.ts`
+still finds `dotenv` and `prisma/config` while the application's own resolution
+is untouched.
+
+A previous version built a second image from a `Dockerfile.migrations` that ran
+`pnpm install --prod` — pulling Next, React and every other runtime dependency
+in order to run one command. That image was 1.63 GB to carry 94 kB of
+migrations. Publishing one image instead cut the total pulled per deploy from
+about 2 GB to 685 MB, and halved the number of GHCR packages to keep public.
+
+Required repository/organization configuration:
+
+| Name               | Kind     | Purpose                                       |
+| ------------------ | -------- | --------------------------------------------- |
+| `COOLIFY_TOKEN`    | secret   | Coolify API token (organization-level secret) |
+| `COOLIFY_APP_UUID` | variable | UUID of the Coolify application to redeploy   |
+
+The deploy step skips itself when either Coolify value is missing, so a copy of
+this template publishes images without redeploying the template's own app.
+
+The build itself needs no application secrets — see below.
+
+### One image, many environments
+
+Nothing environment-specific is baked into the image, so the same build can back
+several Coolify applications. `IMAGE_TAG` selects which build each one runs:
+leave it unset to track `latest`, or pin it to a commit SHA in the application's
+Coolify environment variables to promote a build that has already been verified
+elsewhere. **Adding a test environment later is therefore just a second Coolify
+application pointed at this same compose file** — no repository changes, no
+second image.
+
+This requires that no `NEXT_PUBLIC_*` variable is present during the build.
+Next.js substitutes those into the bundle only when they exist at build time, so
+leaving them unset keeps `process.env.NEXT_PUBLIC_*` in the compiled server
+output as a real runtime lookup, and each environment supplies its own value
+through Coolify.
+
+It works for `NEXT_PUBLIC_VAPID_PUBLIC_KEY` because that value is read
+server-side only (`src/lib/web-push.ts`); the browser fetches the key from
+`GET /api/notifications/subscribe` rather than reading an inlined copy. If
+client code ever needs a `NEXT_PUBLIC_*` value directly it will be `undefined`
+in the browser, and baking it in to fix that would re-tie the image to a single
+environment — serve it from an API route or a server component prop instead.
 
 ### Deployment Commands
 
-Build and start all services:
+Pull the published image and start all services:
 
 ```bash
-docker compose --profile production up -d --build
+docker compose --profile production up -d
+```
+
+Build the image from source instead (local verification, and what CI does):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml \
+  --profile production up -d --build
 ```
 
 Check service status:

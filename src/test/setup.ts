@@ -2,6 +2,18 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeAll, vi } from 'vitest';
 
+// Every render goes through ImpersonationProvider (src/test/test-utils.tsx),
+// which calls useSession. The real client leaves a nanostores timer that touches
+// `window` after jsdom teardown, failing the run. Tests needing session values
+// override this via src/test/mocks.tsx.
+vi.mock('@/lib/auth-client', () => ({
+  authClient: {},
+  useSession: () => ({ data: null, isPending: false, refetch: vi.fn() }),
+  signOut: vi.fn(),
+  signIn: { email: vi.fn(), social: vi.fn() },
+  signUp: { email: vi.fn() },
+}));
+
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

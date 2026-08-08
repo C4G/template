@@ -1,3 +1,5 @@
+# Production stack, deployed as a Coolify "Docker Compose" resource. No `build:`
+# keys on purpose — .github/workflows/publish.yaml builds and publishes the image.
 services:
   template-db:
     image: postgres:17
@@ -17,11 +19,11 @@ services:
       start_period: 30s
       start_interval: 2s
 
-  # Database migrations (production only)
+  # Database migrations (production only). Same image as the app, different
+  # command — the image ships the Prisma CLI for exactly this.
   template-migrations:
-    build:
-      context: .
-      dockerfile: Dockerfile.migrations
+    image: ghcr.io/c4g/template:${IMAGE_TAG:-latest}
+    command: ["node", "/node_modules/prisma/build/index.js", "migrate", "deploy"]
     environment:
       - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PW}@template-db:5432/${DATABASE_NAME}
     restart: "no"
@@ -33,12 +35,7 @@ services:
 
   # Next.js application (production only)
   template-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
-        - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+    image: ghcr.io/c4g/template:${IMAGE_TAG:-latest}
     ports:
       - "${APP_PORT-3001:}3000"
     environment:

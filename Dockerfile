@@ -21,13 +21,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM base AS builder
 WORKDIR /app
 
-# Declare build arguments for Next.js public variables
-ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
-ARG BETTER_AUTH_URL
-
-# Set environment variables from build args
-ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
-ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
+# No build args on purpose: Next.js only inlines NEXT_PUBLIC_* vars that exist
+# at build time, so leaving them unset keeps one image usable in every environment.
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
@@ -46,6 +41,17 @@ RUN pnpm exec prisma generate
 # Build Next.js application
 RUN pnpm run build
 
+# Prisma CLI for `migrate deploy`. npm, not pnpm: pnpm's symlink farm does not
+# survive a COPY between stages. `npm init -y` keeps it to just these packages.
+FROM base AS migrator
+WORKDIR /src
+COPY package.json ./
+WORKDIR /migrator
+RUN npm init -y > /dev/null && \
+    npm install --no-audit --no-fund \
+      "prisma@$(node -p "require('/src/package.json').devDependencies.prisma")" \
+      "dotenv@$(node -p "require('/src/package.json').dependencies.dotenv")"
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -62,6 +68,12 @@ RUN apk add --no-cache wget
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Migration tooling, so the migration service can run this same image. At the
+# root, not /app/node_modules, which has symlinks a directory COPY cannot cross.
+COPY --from=migrator --chown=nextjs:nodejs /migrator/node_modules /node_modules
+COPY --chown=nextjs:nodejs prisma ./prisma
+COPY --chown=nextjs:nodejs prisma.config.ts ./prisma.config.ts
 
 USER nextjs
 

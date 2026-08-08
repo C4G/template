@@ -52,7 +52,8 @@ jobs:
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
         run: |
-          docker compose -f ./docker-compose.yml --profile production -p "template-pr-${PR_NUMBER}" up --build -d
+          # Build overlay, so the PR runs an image built from this branch.
+          docker compose -f ./docker-compose.yml -f ./docker-compose.build.yml --profile production -p "template-pr-${PR_NUMBER}" up --build -d
 
           # Wait for services to be healthy
           echo "Waiting for services to start..."

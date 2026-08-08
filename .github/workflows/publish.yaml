@@ -1,0 +1,121 @@
+name: Publish Image
+
+# Builds the image in CI so the shared Coolify host only pulls and restarts.
+# One image covers both compose services; the migration one just runs a different command.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Must be lowercase — GHCR rejects mixed-case image names, and the org is "C4G".
+  # Keep in sync with the `image:` value in docker-compose.yml.
+  IMAGE: ghcr.io/c4g/template
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          # No build-args, so one image works in every environment. See Dockerfile.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+      # CI only ever builds the PR head; the squashed commit on main is not
+      # exercised until here. Runs the production compose with no build overlay.
+      - name: Smoke test the published image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          DATABASE_PW: smoke
+          DATABASE_USER: smoke
+          DATABASE_NAME: smoke
+          DATABASE_PORT: ''
+          APP_PORT: ''
+          AUTH_SECRET: smoke-only-not-a-real-secret-value
+          AUTH_GOOGLE_ID: ''
+          AUTH_GOOGLE_SECRET: ''
+          RESEND_API_KEY: ''
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: smoke-public-key
+          VAPID_PRIVATE_KEY: smoke-private-key
+        run: |
+          docker compose -f docker-compose.yml --profile production -p smoke up -d --pull always
+
+          app=$(docker compose -p smoke ps -q --all template-app)
+          mig=$(docker compose -p smoke ps -q --all template-migrations)
+
+          for i in $(seq 1 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' "$app")
+            echo "attempt $i: $status"
+            case "$status" in healthy|unhealthy) break ;; esac
+            sleep 2
+          done
+
+          code=$(docker inspect -f '{{.State.ExitCode}}' "$mig")
+          if [ "$code" != "0" ]; then
+            echo "::error::migrations exited $code in the published image"
+            docker compose -p smoke logs
+            exit 1
+          fi
+
+          if [ "$(docker inspect -f '{{.State.Health.Status}}' "$app")" != "healthy" ]; then
+            echo "::error::published image never became healthy"
+            docker compose -p smoke logs
+            exit 1
+          fi
+
+          docker exec "$app" wget -qO- http://localhost:3000/api/health
+          echo "OK — pulled image migrated and served"
+
+      - name: Stop smoke test stack
+        if: always()
+        run: docker compose -f docker-compose.yml --profile production -p smoke down --volumes --remove-orphans || true
+
+      - name: Summary
+        run: |
+          {
+            echo "### Image published"
+            echo ''
+            echo '```'
+            echo "${IMAGE}:latest"
+            echo "${IMAGE}:${GITHUB_SHA}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Deploy from here, not Coolify's git webhook, so it cannot pull `:latest`
+      # mid-push. Skipped until both values exist (secrets need `env` for `if:`).
+      - name: Trigger Coolify deployment
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
+        if: ${{ env.COOLIFY_TOKEN != '' && env.COOLIFY_APP_UUID != '' }}
+        run: |
+          curl -fsS -X GET \
+            "https://coolify.c4g.dev/api/v1/deploy?uuid=${COOLIFY_APP_UUID}" \
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}"
