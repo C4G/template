@@ -1,12 +1,13 @@
-name: Publish Images
+name: Publish Image
 
-# Builds the application and migration images and pushes them to GHCR so the
-# Coolify host pulls finished images instead of compiling them. Building on the
-# shared server ties up CPU and disk for every other application on the box;
-# doing it here keeps deploys to a pull-and-restart.
+# Builds the application image and pushes it to GHCR so the Coolify host pulls a
+# finished image instead of compiling it. Building on the shared server ties up
+# CPU and disk for every other application on the box; doing it here keeps
+# deploys to a pull-and-restart.
 #
-# docker-compose.yml has no `build:` keys for these services on purpose — see
-# the comment at the top of that file.
+# One image covers both compose services: it ships the Prisma CLI, so the
+# migration service runs it with a different command. docker-compose.yml has no
+# `build:` keys on purpose — see the comment at the top of that file.
 
 on:
   push:
@@ -19,8 +20,8 @@ concurrency:
 
 env:
   # Must be lowercase — GHCR rejects mixed-case image names, and the org is "C4G".
-  # Keep in sync with the `image:` values in docker-compose.yml.
-  IMAGE_BASE: ghcr.io/c4g/template
+  # Keep in sync with the `image:` value in docker-compose.yml.
+  IMAGE: ghcr.io/c4g/template
 
 jobs:
   publish:
@@ -40,19 +41,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push migrations image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.migrations
-          push: true
-          tags: |
-            ${{ env.IMAGE_BASE }}-migrations:latest
-            ${{ env.IMAGE_BASE }}-migrations:${{ github.sha }}
-          cache-from: type=gha,scope=migrations
-          cache-to: type=gha,mode=max,scope=migrations
-
-      - name: Build and push app image
+      - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -61,22 +50,20 @@ jobs:
           # No build-args: nothing environment-specific may be baked into the
           # image, so one build can serve production and any future test app.
           # See the comment in Dockerfile.
-          cache-from: type=gha,scope=app
-          cache-to: type=gha,mode=max,scope=app
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
-            ${{ env.IMAGE_BASE }}-app:latest
-            ${{ env.IMAGE_BASE }}-app:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
 
       - name: Summary
         run: |
           {
-            echo "### Images published"
+            echo "### Image published"
             echo ''
             echo '```'
-            echo "${IMAGE_BASE}-app:latest"
-            echo "${IMAGE_BASE}-app:${GITHUB_SHA}"
-            echo "${IMAGE_BASE}-migrations:latest"
-            echo "${IMAGE_BASE}-migrations:${GITHUB_SHA}"
+            echo "${IMAGE}:latest"
+            echo "${IMAGE}:${GITHUB_SHA}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 

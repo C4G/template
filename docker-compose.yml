@@ -1,11 +1,11 @@
 # Production stack — deployed as a single Coolify "Docker Compose" resource.
 #
-# The two application services reference prebuilt GHCR images and deliberately
-# have no `build:` key: that is what stops the shared Coolify host from
-# compiling the app on every deploy. The images are produced by
+# The application and migration services share one prebuilt GHCR image and
+# deliberately have no `build:` key: that is what stops the shared Coolify host
+# from compiling the app on every deploy. The image is produced by
 # .github/workflows/publish.yaml on every push to main.
 #
-# Nothing environment-specific is baked into the images, so the same build can
+# Nothing environment-specific is baked into the image, so the same build can
 # back several Coolify applications. `IMAGE_TAG` selects which build each one
 # runs: leave it unset to track `latest`, or pin it to a commit SHA (set
 # IMAGE_TAG in the application's environment variables) to promote a build that
@@ -17,7 +17,7 @@
 #     --profile production up --build -d
 #
 # When copying this template into a new project, change `ghcr.io/c4g/template`
-# below and IMAGE_BASE in .github/workflows/publish.yaml to the new image name.
+# below and IMAGE in .github/workflows/publish.yaml to the new image name.
 services:
   template-db:
     image: postgres:17
@@ -37,9 +37,15 @@ services:
       start_period: 30s
       start_interval: 2s
 
-  # Database migrations (production only)
+  # Database migrations (production only).
+  #
+  # Runs from the SAME image as the application, with a different command — the
+  # image ships the Prisma CLI for exactly this (see Dockerfile). A dedicated
+  # migration image would be a second thing to build, publish, keep public and
+  # pull, for one command.
   template-migrations:
-    image: ghcr.io/c4g/template-migrations:${IMAGE_TAG:-latest}
+    image: ghcr.io/c4g/template:${IMAGE_TAG:-latest}
+    command: ["node", "/node_modules/prisma/build/index.js", "migrate", "deploy"]
     environment:
       - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PW}@template-db:5432/${DATABASE_NAME}
     restart: "no"
@@ -51,7 +57,7 @@ services:
 
   # Next.js application (production only)
   template-app:
-    image: ghcr.io/c4g/template-app:${IMAGE_TAG:-latest}
+    image: ghcr.io/c4g/template:${IMAGE_TAG:-latest}
     ports:
       - "${APP_PORT-3001:}3000"
     environment:

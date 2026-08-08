@@ -116,23 +116,53 @@ The application uses Docker Compose for production deployments with an automated
 ### Architecture
 
 - **Database**: PostgreSQL 17 with persistent volume storage
-- **Migrations**: Separate init container that runs database migrations before the app starts
+- **Migrations**: Init container that runs database migrations before the app
+  starts, from the same image as the app
 - **Application**: Next.js standalone server with optimized production build
 
 ### Image Publishing (CD)
 
 `.github/workflows/publish.yaml` runs on every push to `main` (and on manual
-dispatch). It builds both images, pushes them to GHCR, and then triggers a
-Coolify deployment:
+dispatch). It builds one image, pushes it to GHCR, and then triggers a Coolify
+deployment:
 
-- `ghcr.io/c4g/template-app:latest` and `:<commit-sha>`
-- `ghcr.io/c4g/template-migrations:latest` and `:<commit-sha>`
+- `ghcr.io/c4g/template:latest` and `:<commit-sha>`
 
-`docker-compose.yml` references those published images and has **no `build:`
+`docker-compose.yml` references that published image and has **no `build:`
 keys**, which is what keeps the shared Coolify host from compiling the
 application on every deploy — it only pulls and restarts. The deploy is
 triggered from the workflow rather than by Coolify's git webhook so that
 Coolify cannot pull `:latest` before the new image has finished uploading.
+
+### One image, both services
+
+`template-migrations` and `template-app` run the **same image** with different
+commands. The image ships the Prisma CLI (the `migrator` stage in `Dockerfile`
+installs it on its own), so the migration step needs nothing extra:
+
+```yaml
+template-migrations:
+  image: ghcr.io/c4g/template:${IMAGE_TAG:-latest}
+  command: ['node', '/node_modules/prisma/build/index.js', 'migrate', 'deploy']
+```
+
+The ordering guarantee is unchanged — the app still waits on
+`service_completed_successfully`, so it starts only after migrations exit 0.
+
+The migration tooling is installed with **npm**, not pnpm, and lands at
+`/node_modules` rather than `/app/node_modules`. Both details are load-bearing:
+pnpm's symlink farm does not survive a `COPY` between stages, and the Next.js
+standalone output contains symlinked packages, so copying a directory over
+`/app/node_modules` fails with `cannot copy to non-directory`. `/node_modules`
+is the last place Node looks when resolving from `/app`, so `prisma.config.ts`
+still finds `dotenv` and `prisma/config` while the application's own resolution
+is untouched.
+
+A previous version built a second image from a `Dockerfile.migrations` that ran
+`pnpm install --prod` — pulling Next, React and every other runtime dependency
+in order to run one command. That image was 1.63 GB to carry 94 kB of
+migrations. Publishing one image instead cut the total pulled per deploy from
+about 2 GB to 685 MB, and halved the number of GHCR packages to keep public.
 
 Required repository/organization configuration:
 
@@ -171,13 +201,13 @@ environment — serve it from an API route or a server component prop instead.
 
 ### Deployment Commands
 
-Pull the published images and start all services:
+Pull the published image and start all services:
 
 ```bash
 docker compose --profile production up -d
 ```
 
-Build the images from source instead (local verification, and what CI does):
+Build the image from source instead (local verification, and what CI does):
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.build.yml \

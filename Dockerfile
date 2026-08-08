@@ -56,6 +56,24 @@ RUN pnpm exec prisma generate
 # Build Next.js application
 RUN pnpm run build
 
+# Prisma CLI for `prisma migrate deploy`, resolved on its own so the runtime
+# image carries the migration tooling without the rest of the dev toolchain.
+#
+# npm rather than pnpm on purpose: npm produces a flat node_modules of real
+# directories that can be COPYed into the standalone output, whereas pnpm's
+# symlink farm points into .pnpm/ and does not survive the copy. `npm init -y`
+# gives an empty manifest first so npm installs only these two packages instead
+# of the application's whole dependency tree; the versions are read from the
+# real package.json so they cannot drift from it.
+FROM base AS migrator
+WORKDIR /src
+COPY package.json ./
+WORKDIR /migrator
+RUN npm init -y > /dev/null && \
+    npm install --no-audit --no-fund \
+      "prisma@$(node -p "require('/src/package.json').devDependencies.prisma")" \
+      "dotenv@$(node -p "require('/src/package.json').dependencies.dotenv")"
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -72,6 +90,19 @@ RUN apk add --no-cache wget
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Migration tooling. This is what lets the migration service run from this same
+# image (see docker-compose.yml) instead of needing a second one.
+#
+# It goes at the filesystem root rather than into /app/node_modules: the
+# standalone output contains symlinked packages, so copying a directory over it
+# fails outright ("cannot copy to non-directory"). /node_modules is the last
+# place Node looks when resolving from /app, so prisma.config.ts still finds
+# `dotenv` and `prisma/config` while the application's own resolution is
+# untouched.
+COPY --from=migrator --chown=nextjs:nodejs /migrator/node_modules /node_modules
+COPY --chown=nextjs:nodejs prisma ./prisma
+COPY --chown=nextjs:nodejs prisma.config.ts ./prisma.config.ts
 
 USER nextjs
 

@@ -1,21 +1,18 @@
 # Local/CI build overlay.
 #
-# docker-compose.yml deliberately references prebuilt GHCR images so the
-# deployment host never compiles the app. This file adds the `build:` keys back
-# so the same images can be built from source:
+# docker-compose.yml deliberately references the prebuilt GHCR image so the
+# deployment host never compiles the app. This file adds the `build:` key back
+# so the same image can be built from source:
 #
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml \
 #     --profile production up --build -d
 #
-# The built images are tagged with the `image:` values from the base file, so
-# the stack runs exactly as it does in production. No build args are passed on
-# purpose — see the comment in Dockerfile.
+# Only template-app declares a build: the migration service runs the very same
+# image with a different command, so building it once covers both. The built
+# image is tagged with the `image:` value from the base file, so the stack runs
+# exactly as it does in production. No build args are passed on purpose — see
+# the comment in Dockerfile.
 services:
-  template-migrations:
-    build:
-      context: .
-      dockerfile: Dockerfile.migrations
-
   template-app:
     build:
       context: .
