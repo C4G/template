@@ -5,6 +5,13 @@
 # compiling the app on every deploy. The images are produced by
 # .github/workflows/publish.yaml on every push to main.
 #
+# Nothing environment-specific is baked into the images, so the same build can
+# back several Coolify applications. `IMAGE_TAG` selects which build each one
+# runs: leave it unset to track `latest`, or pin it to a commit SHA (set
+# IMAGE_TAG in the application's environment variables) to promote a build that
+# has already been verified elsewhere. A future test environment is then a
+# second Coolify application pointed at this same compose file.
+#
 # To build the same images locally (or in CI), overlay docker-compose.build.yml:
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml \
 #     --profile production up --build -d

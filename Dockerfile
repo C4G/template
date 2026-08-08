@@ -21,13 +21,23 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM base AS builder
 WORKDIR /app
 
-# Declare build arguments for Next.js public variables
-ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
-ARG BETTER_AUTH_URL
-
-# Set environment variables from build args
-ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
-ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
+# No build args on purpose — nothing environment-specific is baked in, so one
+# published image serves every environment (production, a future test app, a
+# preview) and each supplies its own values through Coolify at runtime.
+#
+# NEXT_PUBLIC_VAPID_PUBLIC_KEY in particular: Next.js only substitutes a
+# NEXT_PUBLIC_* variable into the bundle when it is present in the environment
+# at build time. Leaving it unset keeps
+# `process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY` in the compiled server output as a
+# real runtime lookup. That is safe because the value is read server-side only
+# (src/lib/web-push.ts) — the browser fetches the key from
+# GET /api/notifications/subscribe (see src/hooks/use-push-notifications.ts)
+# rather than reading an inlined copy. If client code ever reads a
+# NEXT_PUBLIC_* value directly it would be undefined in the browser, and baking
+# it back in would re-tie the image to one environment.
+#
+# BETTER_AUTH_URL is read at runtime by better-auth and was never needed here:
+# it was set on the builder stage only, which the runner stage does not inherit.
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./

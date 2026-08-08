@@ -58,10 +58,9 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          # Next.js inlines NEXT_PUBLIC_* at build time, so the VAPID public key
-          # has to be baked in here rather than supplied by Coolify at runtime.
-          build-args: |
-            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          # No build-args: nothing environment-specific may be baked into the
+          # image, so one build can serve production and any future test app.
+          # See the comment in Dockerfile.
           cache-from: type=gha,scope=app
           cache-to: type=gha,mode=max,scope=app
           tags: |

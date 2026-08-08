@@ -136,18 +136,38 @@ Coolify cannot pull `:latest` before the new image has finished uploading.
 
 Required repository/organization configuration:
 
-| Name                           | Kind     | Purpose                                       |
-| ------------------------------ | -------- | --------------------------------------------- |
-| `COOLIFY_TOKEN`                | secret   | Coolify API token (organization-level secret) |
-| `COOLIFY_APP_UUID`             | variable | UUID of the Coolify application to redeploy   |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | secret   | Inlined into the app bundle at build time     |
+| Name               | Kind     | Purpose                                       |
+| ------------------ | -------- | --------------------------------------------- |
+| `COOLIFY_TOKEN`    | secret   | Coolify API token (organization-level secret) |
+| `COOLIFY_APP_UUID` | variable | UUID of the Coolify application to redeploy   |
 
 The deploy step skips itself when either Coolify value is missing, so a copy of
 this template publishes images without redeploying the template's own app.
 
-Because `NEXT_PUBLIC_*` variables are inlined by Next.js at build time, the
-VAPID public key must be supplied to the build here; every other variable is
-read at runtime and is configured in Coolify.
+The build itself needs no application secrets — see below.
+
+### One image, many environments
+
+Nothing environment-specific is baked into the image, so the same build can back
+several Coolify applications. `IMAGE_TAG` selects which build each one runs:
+leave it unset to track `latest`, or pin it to a commit SHA in the application's
+Coolify environment variables to promote a build that has already been verified
+elsewhere. **Adding a test environment later is therefore just a second Coolify
+application pointed at this same compose file** — no repository changes, no
+second image.
+
+This requires that no `NEXT_PUBLIC_*` variable is present during the build.
+Next.js substitutes those into the bundle only when they exist at build time, so
+leaving them unset keeps `process.env.NEXT_PUBLIC_*` in the compiled server
+output as a real runtime lookup, and each environment supplies its own value
+through Coolify.
+
+It works for `NEXT_PUBLIC_VAPID_PUBLIC_KEY` because that value is read
+server-side only (`src/lib/web-push.ts`); the browser fetches the key from
+`GET /api/notifications/subscribe` rather than reading an inlined copy. If
+client code ever needs a `NEXT_PUBLIC_*` value directly it will be `undefined`
+in the browser, and baking it in to fix that would re-tie the image to a single
+environment — serve it from an API route or a server component prop instead.
 
 ### Deployment Commands
 
