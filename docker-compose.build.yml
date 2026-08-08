@@ -1,0 +1,28 @@
+# Local/CI build overlay.
+#
+# docker-compose.yml deliberately references prebuilt GHCR images so the
+# deployment host never compiles the app. This file adds the `build:` keys back
+# so the same images can be built from source:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml \
+#     --profile production up --build -d
+#
+# The built images are tagged with the `image:` values from the base file, so
+# the stack runs exactly as it does in production.
+services:
+  template-migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrations
+
+  template-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # BETTER_AUTH_URL is read at runtime by better-auth, not inlined at
+        # build time — it is passed here only to mirror the Dockerfile's ARG.
+        # NEXT_PUBLIC_VAPID_PUBLIC_KEY *is* inlined by Next.js and must be
+        # correct at build time.
+        - NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+        - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}

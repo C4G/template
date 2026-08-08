@@ -77,7 +77,10 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Manual Updates after cloning the template (by C4G staff)
 
-1. Replace `template` in many files to your project name.
+1. Replace `template` in many files to your project name. This includes the
+   `ghcr.io/c4g/template-*` image names in `docker-compose.yml` and `IMAGE_BASE`
+   in `.github/workflows/publish.yaml`, plus a `COOLIFY_APP_UUID` repository
+   variable pointing at the new project's Coolify application.
 2. Setup oauth settings in [GCP](https://console.cloud.google.com/apis/credentials?project=c4g-template)
 3. Setup nginx configuration, and re-run SSL cert on [C4G Server](https://c4g.dev).
 4. Generate VAPID keys for PWA setup [Generator](https://vapidkeys.com/)
@@ -116,12 +119,49 @@ The application uses Docker Compose for production deployments with an automated
 - **Migrations**: Separate init container that runs database migrations before the app starts
 - **Application**: Next.js standalone server with optimized production build
 
+### Image Publishing (CD)
+
+`.github/workflows/publish.yaml` runs on every push to `main` (and on manual
+dispatch). It builds both images, pushes them to GHCR, and then triggers a
+Coolify deployment:
+
+- `ghcr.io/c4g/template-app:latest` and `:<commit-sha>`
+- `ghcr.io/c4g/template-migrations:latest` and `:<commit-sha>`
+
+`docker-compose.yml` references those published images and has **no `build:`
+keys**, which is what keeps the shared Coolify host from compiling the
+application on every deploy — it only pulls and restarts. The deploy is
+triggered from the workflow rather than by Coolify's git webhook so that
+Coolify cannot pull `:latest` before the new image has finished uploading.
+
+Required repository/organization configuration:
+
+| Name                           | Kind     | Purpose                                       |
+| ------------------------------ | -------- | --------------------------------------------- |
+| `COOLIFY_TOKEN`                | secret   | Coolify API token (organization-level secret) |
+| `COOLIFY_APP_UUID`             | variable | UUID of the Coolify application to redeploy   |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | secret   | Inlined into the app bundle at build time     |
+
+The deploy step skips itself when either Coolify value is missing, so a copy of
+this template publishes images without redeploying the template's own app.
+
+Because `NEXT_PUBLIC_*` variables are inlined by Next.js at build time, the
+VAPID public key must be supplied to the build here; every other variable is
+read at runtime and is configured in Coolify.
+
 ### Deployment Commands
 
-Build and start all services:
+Pull the published images and start all services:
 
 ```bash
-docker compose --profile production up -d --build
+docker compose --profile production up -d
+```
+
+Build the images from source instead (local verification, and what CI does):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml \
+  --profile production up -d --build
 ```
 
 Check service status:
