@@ -48,6 +48,55 @@ jobs:
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
 
+      # CI only ever builds the PR head; the squashed commit on main is not
+      # exercised until here. Runs the production compose with no build overlay.
+      - name: Smoke test the published image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          DATABASE_PW: smoke
+          DATABASE_USER: smoke
+          DATABASE_NAME: smoke
+          DATABASE_PORT: ''
+          APP_PORT: ''
+          AUTH_SECRET: smoke-only-not-a-real-secret-value
+          AUTH_GOOGLE_ID: ''
+          AUTH_GOOGLE_SECRET: ''
+          RESEND_API_KEY: ''
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: smoke-public-key
+          VAPID_PRIVATE_KEY: smoke-private-key
+        run: |
+          docker compose -f docker-compose.yml --profile production -p smoke up -d --pull always
+
+          app=$(docker compose -p smoke ps -q --all template-app)
+          mig=$(docker compose -p smoke ps -q --all template-migrations)
+
+          for i in $(seq 1 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' "$app")
+            echo "attempt $i: $status"
+            case "$status" in healthy|unhealthy) break ;; esac
+            sleep 2
+          done
+
+          code=$(docker inspect -f '{{.State.ExitCode}}' "$mig")
+          if [ "$code" != "0" ]; then
+            echo "::error::migrations exited $code in the published image"
+            docker compose -p smoke logs
+            exit 1
+          fi
+
+          if [ "$(docker inspect -f '{{.State.Health.Status}}' "$app")" != "healthy" ]; then
+            echo "::error::published image never became healthy"
+            docker compose -p smoke logs
+            exit 1
+          fi
+
+          docker exec "$app" wget -qO- http://localhost:3000/api/health
+          echo "OK — pulled image migrated and served"
+
+      - name: Stop smoke test stack
+        if: always()
+        run: docker compose -f docker-compose.yml --profile production -p smoke down --volumes --remove-orphans || true
+
       - name: Summary
         run: |
           {
