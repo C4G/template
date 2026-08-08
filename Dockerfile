@@ -47,8 +47,15 @@ FROM base AS migrator
 WORKDIR /src
 COPY package.json ./
 WORKDIR /migrator
+# @prisma/studio-core pulls in a UI stack (effect, @electric-sql, react-dom,
+# elkjs) that `migrate deploy` never loads — ~95MB. Stub it via an npm override;
+# --install-links copies rather than symlinks so it survives the COPY below.
 RUN npm init -y > /dev/null && \
-    npm install --no-audit --no-fund \
+    mkdir -p stub && \
+    printf '{"name":"@prisma/studio-core","version":"0.0.0","main":"index.js","exports":{".":"./index.js","./*":"./index.js"}}' > stub/package.json && \
+    printf 'module.exports=new Proxy({},{get:()=>undefined});' > stub/index.js && \
+    npm pkg set overrides.@prisma/studio-core=file:./stub && \
+    npm install --no-audit --no-fund --install-links \
       "prisma@$(node -p "require('/src/package.json').devDependencies.prisma")" \
       "dotenv@$(node -p "require('/src/package.json').dependencies.dotenv")"
 
