@@ -1,13 +1,7 @@
 name: Publish Image
 
-# Builds the application image and pushes it to GHCR so the Coolify host pulls a
-# finished image instead of compiling it. Building on the shared server ties up
-# CPU and disk for every other application on the box; doing it here keeps
-# deploys to a pull-and-restart.
-#
-# One image covers both compose services: it ships the Prisma CLI, so the
-# migration service runs it with a different command. docker-compose.yml has no
-# `build:` keys on purpose — see the comment at the top of that file.
+# Builds the image in CI so the shared Coolify host only pulls and restarts.
+# One image covers both compose services; the migration one just runs a different command.
 
 on:
   push:
@@ -47,9 +41,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          # No build-args: nothing environment-specific may be baked into the
-          # image, so one build can serve production and any future test app.
-          # See the comment in Dockerfile.
+          # No build-args, so one image works in every environment. See Dockerfile.
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
@@ -67,12 +59,8 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Deploying from here (rather than letting Coolify redeploy on git push)
-      # avoids a race where Coolify pulls `:latest` before this workflow has
-      # finished pushing it. Skipped automatically until both values exist, so a
-      # copy of this template does not redeploy the template's own application.
-      # The secret is surfaced through `env` because the `secrets` context is
-      # not available in a step-level `if:`.
+      # Deploy from here, not Coolify's git webhook, so it cannot pull `:latest`
+      # mid-push. Skipped until both values exist (secrets need `env` for `if:`).
       - name: Trigger Coolify deployment
         env:
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
