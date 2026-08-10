@@ -1,13 +1,16 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { GoogleIcon } from '@/components/ui/google-icon';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { signIn } from '@/lib/auth-client';
+import { describeAuthError } from '@/lib/auth-errors';
+import { KeyRound } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -15,6 +18,38 @@ export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Conditional UI: surface saved passkeys in the browser's autofill prompt.
+  // Silently unsupported browsers just fall through to the button below.
+  useEffect(() => {
+    let cancelled = false;
+
+    const offerAutofill = async () => {
+      if (
+        typeof window === 'undefined' ||
+        typeof window.PublicKeyCredential === 'undefined' ||
+        !window.PublicKeyCredential.isConditionalMediationAvailable
+      ) {
+        return;
+      }
+
+      const available =
+        await window.PublicKeyCredential.isConditionalMediationAvailable();
+      if (!available || cancelled) return;
+
+      const { error } = await signIn.passkey({ autoFill: true });
+      if (error || cancelled) return;
+
+      router.push('/dashboard');
+      router.refresh();
+    };
+
+    void offerAutofill();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +75,22 @@ export default function SignInPage() {
     await signIn.social({ provider: 'google', callbackURL: '/dashboard' });
   };
 
+  const handlePasskeySignIn = async () => {
+    const { error } = await signIn.passkey();
+
+    if (error) {
+      toast({
+        title: 'Passkey sign in failed',
+        description: describeAuthError(error),
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    router.push('/dashboard');
+    router.refresh();
+  };
+
   return (
     <div className='flex min-h-[calc(100dvh-8.4rem)] items-center justify-center px-4'>
       <div className='w-full max-w-sm space-y-6 rounded-lg border p-6 shadow-xs'>
@@ -56,6 +107,7 @@ export default function SignInPage() {
               id='email'
               type='email'
               placeholder='you@example.com'
+              autoComplete='username webauthn'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -85,14 +137,26 @@ export default function SignInPage() {
             </span>
           </div>
         </div>
-        <Button
-          type='button'
-          variant='outline'
-          className='w-full'
-          onClick={handleGoogleSignIn}
-        >
-          Sign in with Google
-        </Button>
+        <div className='space-y-2'>
+          <Button
+            type='button'
+            variant='outline'
+            className='w-full'
+            onClick={handleGoogleSignIn}
+          >
+            <GoogleIcon className='mr-2 h-4 w-4' />
+            Sign in with Google
+          </Button>
+          <Button
+            type='button'
+            variant='outline'
+            className='w-full'
+            onClick={handlePasskeySignIn}
+          >
+            <KeyRound className='mr-2 h-4 w-4' />
+            Sign in with a passkey
+          </Button>
+        </div>
         <p className='text-muted-foreground text-center text-sm'>
           Don&apos;t have an account?{' '}
           <Link href='/signup' className='hover:text-primary underline'>

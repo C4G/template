@@ -77,10 +77,10 @@ export function NotificationSettings({
             <DialogTitle>Notification Settings</DialogTitle>
           </DialogHeader>
           <div className='flex flex-col items-center gap-3 p-4 text-center'>
-            <BellOff className='h-8 w-8 text-muted-foreground' />
+            <BellOff className='text-muted-foreground h-8 w-8' />
             <div>
               <h4 className='font-medium'>Notifications Not Supported</h4>
-              <p className='text-sm text-muted-foreground'>
+              <p className='text-muted-foreground text-sm'>
                 Your browser does not support push notifications.
               </p>
             </div>
@@ -103,9 +103,9 @@ export function NotificationSettings({
           </div>
 
           <div className='flex flex-col gap-2'>
-            {error && <p className='text-sm text-destructive'>{error}</p>}
+            {error && <p className='text-destructive text-sm'>{error}</p>}
 
-            <p className='text-sm text-muted-foreground'>
+            <p className='text-muted-foreground text-sm'>
               {isSubscribed
                 ? 'You are subscribed to receive notifications.'
                 : 'Subscribe to receive important updates and notifications.'}

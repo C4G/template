@@ -68,6 +68,11 @@
 
 @layer base {
   :root {
+    /* Tells the browser how to paint native UI it renders itself: <select>
+       popups, scrollbars, and other form controls. Without it those stay light
+       in dark mode, because our theme only swaps custom properties. */
+    color-scheme: light;
+
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -103,6 +108,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
 

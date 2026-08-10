@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { GoogleIcon } from '@/components/ui/google-icon';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -103,6 +104,7 @@ export default function SignUpPage() {
           className='w-full'
           onClick={handleGoogleSignIn}
         >
+          <GoogleIcon className='mr-2 h-4 w-4' />
           Sign up with Google
         </Button>
         <p className='text-muted-foreground text-center text-sm'>

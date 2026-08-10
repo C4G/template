@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { passkey } from '@better-auth/passkey';
 import type { User } from '@prisma/client';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
@@ -15,6 +16,18 @@ interface ImpersonatedUser {
   role: UserRole;
   image: string | null;
 }
+
+/**
+ * Passkeys are scoped to this exact hostname, so each app sharing a parent
+ * domain (template.c4g.dev vs. another-app.c4g.dev) keeps its own credentials.
+ * Pointing this at the parent domain instead would let any sibling subdomain
+ * assert them. Falls back to the plugin's own baseURL derivation when unset.
+ */
+const passkeyRpID =
+  process.env.PASSKEY_RP_ID ||
+  (process.env.BETTER_AUTH_URL
+    ? new URL(process.env.BETTER_AUTH_URL).hostname
+    : undefined);
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -46,6 +59,10 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    passkey({
+      rpID: passkeyRpID,
+      rpName: 'Template',
+    }),
     customSession(async ({ user, session }) => {
       const dbUser = user as typeof user & { role: UserRole };
       const sessionUser = {

@@ -1,8 +1,13 @@
 .next
 .cache
 package-lock.json
+pnpm-lock.yaml
 public
 node_modules
 next-env.d.ts
 next.config.ts
 docker-compose.yml
+prisma/generated
+
+# machine-local tool state
+.claude/settings.local.json

@@ -11,11 +11,12 @@ import {
 import { useImpersonation } from '@/components/contexts/impersonation-context';
 import { DropdownMenuSeparator } from '@radix-ui/react-dropdown-menu';
 import { signOut, useSession } from '@/lib/auth-client';
-import { Bell, LogOut, UserCog, UserX } from 'lucide-react';
+import { Bell, KeyRound, LogOut, UserCog, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { EditProfileDialog } from './edit-profile-dialog';
 import { NotificationSettings } from './notification-settings';
+import { PasskeySettings } from './passkey-settings';
 import { ThemeSwitcher } from './theme-switcher';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,6 +29,7 @@ export function UserMenu() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isNotificationSettingsOpen, setIsNotificationSettingsOpen] =
     useState(false);
+  const [isPasskeySettingsOpen, setIsPasskeySettingsOpen] = useState(false);
 
   const handleStopImpersonation = async () => {
     try {
@@ -98,6 +100,20 @@ export function UserMenu() {
             <Bell className='h-4 w-4' />
             <span className='grow'>Notifications</span>
           </DropdownMenuItem>
+          {/*
+            Passkey endpoints resolve the real session, not the impersonation
+            override, so a passkey added here would attach to the admin's own
+            account. Hide the entry rather than mislead.
+          */}
+          {!isImpersonating && (
+            <DropdownMenuItem
+              className='cursor-pointer'
+              onSelect={() => setIsPasskeySettingsOpen(true)}
+            >
+              <KeyRound className='h-4 w-4' />
+              <span className='grow'>Passkeys</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem>
             <ThemeSwitcher />
@@ -127,6 +143,10 @@ export function UserMenu() {
       <NotificationSettings
         isOpen={isNotificationSettingsOpen}
         onOpenChange={setIsNotificationSettingsOpen}
+      />
+      <PasskeySettings
+        isOpen={isPasskeySettingsOpen}
+        onOpenChange={setIsPasskeySettingsOpen}
       />
     </>
   );

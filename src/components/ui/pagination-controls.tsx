@@ -89,7 +89,7 @@ export function PaginationControls({
   return (
     <div className='flex flex-col items-center justify-between gap-4 border-t px-4 py-4 sm:flex-row'>
       <div className='order-2 flex w-full flex-wrap items-center justify-center gap-3 sm:order-1 sm:w-auto sm:justify-start'>
-        <p className='whitespace-nowrap text-sm text-muted-foreground'>
+        <p className='text-muted-foreground text-sm whitespace-nowrap'>
           {totalCount === 0
             ? 'No entries found'
             : `Showing ${startItem} to ${endItem} of ${totalCount} entries`}
@@ -113,7 +113,7 @@ export function PaginationControls({
               >
                 <span>{size} per page</span>
                 {pageSize === size && (
-                  <span className='ml-2 h-1.5 w-1.5 rounded-full bg-primary' />
+                  <span className='bg-primary ml-2 h-1.5 w-1.5 rounded-full' />
                 )}
               </DropdownMenuItem>
             ))}
