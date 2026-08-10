@@ -19,6 +19,63 @@ services:
       start_period: 30s
       start_interval: 2s
 
+  # Pre-migration backup (production only). `migrate deploy` is forward-only, so
+  # this is the only way back from a bad migration. Same image as the database so
+  # pg_dump is version-matched by construction. BACKUP_MODE=required makes a failed
+  # dump block migrations, because template-migrations waits on this completing.
+  # NOTE: these dumps live on the same host and disk as template-db — they protect
+  # against a bad migration, not against losing the machine.
+  template-backup:
+    image: postgres:17
+    entrypoint: ["/bin/sh", "-euc"]
+    command:
+      - |
+        MODE="$${BACKUP_MODE:-required}"
+        case "$$MODE" in
+          off) echo "[backup] BACKUP_MODE=off; skipping the pre-migration backup."; exit 0 ;;
+          best-effort|required) ;;
+          *) echo "[backup] ERROR: BACKUP_MODE must be off, best-effort or required (got '$$MODE')."; exit 1 ;;
+        esac
+
+        stamp=$$(date -u +%Y%m%dT%H%M%SZ)
+        final="/backups/pre-migrate-$$stamp.dump"
+        tmp="/backups/.pre-migrate-$$stamp.dump"
+
+        # Move into place only after verifying, so a partial file never looks like a good backup.
+        fail() {
+          echo "[backup] $$1"
+          rm -f "$$tmp"
+          if [ "$$MODE" = required ]; then exit 1; fi
+          echo "[backup] continuing anyway because BACKUP_MODE=$$MODE."
+          exit 0
+        }
+
+        echo "[backup] Dumping $$PGDATABASE from $$PGHOST:$${PGPORT:-5432} to $$final ..."
+        pg_dump -Fc -f "$$tmp" || fail "pg_dump failed"
+        pg_restore --list "$$tmp" >/dev/null 2>&1 || fail "dump failed pg_restore --list verification"
+        mv "$$tmp" "$$final"
+        echo "[backup] Backup complete: $$final ($$(du -h "$$final" | cut -f1))"
+
+        ls -1t /backups/pre-migrate-*.dump 2>/dev/null | tail -n "+$$(( $${BACKUP_KEEP:-10} + 1 ))" | while read -r old; do
+          echo "[backup] Pruning old backup $$(basename "$$old")"
+          rm -f "$$old"
+        done
+    environment:
+      - PGHOST=template-db
+      - PGUSER=${DATABASE_USER}
+      - PGPASSWORD=${DATABASE_PW}
+      - PGDATABASE=${DATABASE_NAME}
+      - BACKUP_MODE=${BACKUP_MODE:-required}
+      - BACKUP_KEEP=${BACKUP_KEEP:-10}
+    volumes:
+      - template-backups:/backups
+    restart: "no"
+    depends_on:
+      template-db:
+        condition: service_healthy
+    profiles:
+      - production
+
   # Database migrations (production only). Same image as the app, different
   # command — the image ships the Prisma CLI for exactly this.
   template-migrations:
@@ -30,6 +87,8 @@ services:
     depends_on:
       template-db:
         condition: service_healthy
+      template-backup:
+        condition: service_completed_successfully
     profiles:
       - production
 
@@ -70,3 +129,5 @@ services:
 
 volumes:
   template-db-data:
+  # Pre-migration dumps; must outlive the one-shot backup container.
+  template-backups:
