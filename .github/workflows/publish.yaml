@@ -69,6 +69,7 @@ jobs:
 
           app=$(docker compose -p smoke ps -q --all template-app)
           mig=$(docker compose -p smoke ps -q --all template-migrations)
+          bak=$(docker compose -p smoke ps -q --all template-backup)
 
           for i in $(seq 1 60); do
             status=$(docker inspect -f '{{.State.Health.Status}}' "$app")
@@ -76,6 +77,27 @@ jobs:
             case "$status" in healthy|unhealthy) break ;; esac
             sleep 2
           done
+
+          # BACKUP_MODE defaults to required, so migrations only ran if the dump succeeded.
+          code=$(docker inspect -f '{{.State.ExitCode}}' "$bak")
+          if [ "$code" != "0" ]; then
+            echo "::error::pre-migration backup exited $code"
+            docker compose -p smoke logs
+            exit 1
+          fi
+
+          docker compose -p smoke logs template-backup | grep -q "Backup complete" || {
+            echo "::error::backup service did not report a completed dump"
+            docker compose -p smoke logs template-backup
+            exit 1
+          }
+
+          # pg_restore --list proves the dump is a readable archive, not just a non-empty file.
+          docker compose -p smoke run --rm --no-deps --entrypoint /bin/sh template-backup \
+            -euc 'f=$(ls -1t /backups/pre-migrate-*.dump | head -1); pg_restore --list "$f" >/dev/null && echo "dump verified: $f"' || {
+            echo "::error::pre-migration dump failed pg_restore --list"
+            exit 1
+          }
 
           code=$(docker inspect -f '{{.State.ExitCode}}' "$mig")
           if [ "$code" != "0" ]; then

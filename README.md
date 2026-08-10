@@ -116,6 +116,8 @@ The application uses Docker Compose for production deployments with an automated
 ### Architecture
 
 - **Database**: PostgreSQL 17 with persistent volume storage
+- **Backup**: Init container that `pg_dump`s the database before migrations run,
+  from the same image as the database
 - **Migrations**: Init container that runs database migrations before the app
   starts, from the same image as the app
 - **Application**: Next.js standalone server with optimized production build
@@ -148,6 +150,38 @@ template-migrations:
 
 The ordering guarantee is unchanged — the app still waits on
 `service_completed_successfully`, so it starts only after migrations exit 0.
+
+### Pre-migration backup
+
+`prisma migrate deploy` is forward-only, so a bad migration has no way back.
+`template-backup` runs `pg_dump -Fc` before `template-migrations`, using the
+same chaining the app already relies on:
+
+```
+template-db (healthy) → template-backup → template-migrations → template-app
+```
+
+It uses the `postgres:17` image rather than the app image, so `pg_dump` is
+version-matched to the server by construction and there is no client to keep in
+sync. Dumps are verified with `pg_restore --list` and moved into place only
+after passing, so a truncated file can never look like a good backup. They land
+on the `template-backups` volume, pruned to the newest `BACKUP_KEEP` (default 10).
+
+`BACKUP_MODE` controls it:
+
+| Value                | Behaviour                                              |
+| -------------------- | ------------------------------------------------------ |
+| `required` (default) | A failed dump blocks migrations — the app never starts |
+| `best-effort`        | Dumps, but migrates anyway if the dump fails           |
+| `off`                | Never dumps                                            |
+
+`required` needs no scripting to enforce: `template-migrations` waits on
+`service_completed_successfully`, so a non-zero backup stops the chain. An
+unrecognised `BACKUP_MODE` fails rather than silently downgrading.
+
+> These dumps sit on the same host and disk as `template-db`. They protect
+> against a bad migration, **not** against losing the machine. Add off-box
+> backups separately if the data warrants it.
 
 The migration tooling is installed with **npm**, not pnpm, and lands at
 `/node_modules` rather than `/app/node_modules`. Both details are load-bearing:
