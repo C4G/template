@@ -25,7 +25,10 @@ describe('UserActionsCell', () => {
       onSendNotification: vi.fn(),
       onDelete: vi.fn(),
       onImpersonate: vi.fn(),
+      onBan: vi.fn(),
+      onUnban: vi.fn(),
       isSendingNotification: false,
+      isBanning: false,
       currentUserId: 'different-user-id',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       api: {} as any,
@@ -81,6 +84,7 @@ describe('UserActionsCell', () => {
     expect(screen.getByText(/Send Email/i)).toBeInTheDocument();
     expect(screen.getByText(/Send Test Notification/i)).toBeInTheDocument();
     expect(screen.getByText(/Delete User/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ban User/i)).toBeInTheDocument();
   });
 
   it('hides Impersonate option for current user', async () => {
@@ -138,6 +142,26 @@ describe('UserActionsCell', () => {
 
     // Expect
     expect(props.onDelete).toHaveBeenCalledWith(mockUser);
+  });
+
+  it('calls onBan when Ban User is clicked', async () => {
+    const { user, props } = setup();
+
+    await user.click(screen.getByRole('button'));
+    await user.click(screen.getByText(/Ban User/i));
+
+    expect(props.onBan).toHaveBeenCalledWith(mockUser);
+  });
+
+  it('shows and calls Unban User for a banned user', async () => {
+    const bannedUser = createMockUser({ banned: true });
+    const { user, props } = setup({ data: bannedUser });
+
+    await user.click(screen.getByRole('button'));
+    await user.click(screen.getByText(/Unban User/i));
+
+    expect(screen.queryByText(/Ban User/i)).not.toBeInTheDocument();
+    expect(props.onUnban).toHaveBeenCalledWith(bannedUser);
   });
 
   it('calls onImpersonate when Impersonate User is clicked', async () => {

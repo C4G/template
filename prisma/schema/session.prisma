@@ -5,6 +5,7 @@ model Session {
   expiresAt DateTime
   ipAddress String?
   userAgent String?
+  impersonatedBy String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())

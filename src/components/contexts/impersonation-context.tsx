@@ -2,11 +2,13 @@
 
 import { toast } from '@/hooks/use-toast';
 import { User } from '@prisma/client';
-import { useSession } from '@/lib/auth-client';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { authClient, useSession } from '@/lib/auth-client';
+import { createContext, useContext } from 'react';
+
+type ImpersonatedUser = Pick<User, 'id' | 'name' | 'email' | 'role' | 'image'>;
 
 interface ImpersonationContextType {
-  impersonatedUser: User | null;
+  impersonatedUser: ImpersonatedUser | null;
   isImpersonating: boolean;
   startImpersonation: (_user: User) => Promise<void>;
   stopImpersonation: () => Promise<void>;
@@ -21,45 +23,21 @@ export function ImpersonationProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [impersonatedUser, setImpersonatedUser] = useState<User | null>(null);
   const { data: session, refetch } = useSession();
 
-  // Check for impersonation status on mount only if user is authenticated
-  useEffect(() => {
-    if (session?.user) {
-      checkImpersonationStatus();
-    }
-  }, [session?.user]);
-
-  const checkImpersonationStatus = async () => {
-    try {
-      const response = await fetch('/api/impersonate/status');
-      if (response.ok) {
-        const data = await response.json();
-        setImpersonatedUser(data.impersonatedUser || null);
-      }
-    } catch (error) {
-      console.error('Error checking impersonation status:', error);
-    }
-  };
+  const isImpersonating = !!session?.session?.impersonatedBy;
+  const impersonatedUser = isImpersonating
+    ? (session.user as ImpersonatedUser)
+    : null;
 
   const startImpersonation = async (user: User) => {
     try {
-      const response = await fetch('/api/impersonate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
+      const { error } = await authClient.admin.impersonateUser({
+        userId: user.id,
       });
+      if (error) throw new Error(error.message);
 
-      if (response.ok) {
-        const data = await response.json();
-        setImpersonatedUser(data.impersonatedUser);
-
-        // Force session refresh to update the UI
-        refetch();
-      } else {
-        throw new Error('Failed to start impersonation');
-      }
+      await refetch();
     } catch (error) {
       console.error('Error starting impersonation:', error);
       throw error;
@@ -68,23 +46,15 @@ export function ImpersonationProvider({
 
   const stopImpersonation = async () => {
     try {
-      const response = await fetch('/api/impersonate', {
-        method: 'DELETE',
+      const { error } = await authClient.admin.stopImpersonating();
+      if (error) throw new Error(error.message);
+
+      await refetch();
+
+      toast({
+        title: 'Impersonation Stopped',
+        description: 'You are no longer impersonating a user.',
       });
-
-      if (response.ok) {
-        setImpersonatedUser(null);
-
-        // Force session refresh to update the UI
-        refetch();
-
-        toast({
-          title: 'Impersonation Stopped',
-          description: 'You are no longer impersonating a user.',
-        });
-      } else {
-        throw new Error('Failed to stop impersonation');
-      }
     } catch (error) {
       console.error('Error stopping impersonation:', error);
       toast({
@@ -100,7 +70,7 @@ export function ImpersonationProvider({
     <ImpersonationContext.Provider
       value={{
         impersonatedUser,
-        isImpersonating: !!impersonatedUser,
+        isImpersonating,
         startImpersonation,
         stopImpersonation,
       }}

@@ -7,7 +7,10 @@ describe('users-grid-columns', () => {
     onSendNotification: vi.fn(),
     onDelete: vi.fn(),
     onImpersonate: vi.fn(),
+    onBan: vi.fn(),
+    onUnban: vi.fn(),
     isSendingNotification: false,
+    isBanning: false,
     currentUserId: 'user-123',
   };
 
@@ -41,6 +44,8 @@ describe('users-grid-columns', () => {
       expect(fields).toContain('name');
       expect(fields).toContain('email');
       expect(fields).toContain('role');
+      expect(fields).toContain('banReason');
+      expect(fields).toContain('banExpires');
       expect(fields).toContain('id');
       expect(fields).toContain('createdAt');
       expect(fields).toContain('updatedAt');

@@ -27,14 +27,20 @@ export function getColumnDefs({
   onSendNotification,
   onDelete,
   onImpersonate,
+  onBan,
+  onUnban,
   isSendingNotification,
+  isBanning,
   currentUserId,
 }: {
   onSendEmail: (_: User) => void;
   onSendNotification: (_: User) => void;
   onDelete: (_: User) => void;
   onImpersonate: (_: User) => void;
+  onBan: (_: User) => void;
+  onUnban: (_: User) => void;
   isSendingNotification: boolean;
+  isBanning: boolean;
   currentUserId?: string;
 }): ColDef[] {
   return [
@@ -47,6 +53,36 @@ export function getColumnDefs({
       cellEditorParams: {
         values: [null, 'ADMIN', 'STAFF'],
       },
+    },
+    {
+      field: 'banReason',
+      headerName: 'Ban Reason',
+      editable: false,
+    },
+    {
+      field: 'banExpires',
+      headerName: 'Ban Expires',
+      editable: false,
+      filter: 'agDateColumnFilter',
+      filterParams: {
+        filterOptions: ['greaterThanOrEqual', 'lessThanOrEqual', 'inRange'],
+        suppressAndOrCondition: true,
+        comparator: (filterLocalDateAtMidnight: Date, cellValue: string) => {
+          if (!cellValue) return -1;
+          const cellDate = new Date(cellValue);
+          const cellDateAtMidnight = new Date(
+            cellDate.getFullYear(),
+            cellDate.getMonth(),
+            cellDate.getDate()
+          );
+
+          if (cellDateAtMidnight < filterLocalDateAtMidnight) return -1;
+          if (cellDateAtMidnight > filterLocalDateAtMidnight) return 1;
+          return 0;
+        },
+      },
+      valueFormatter: (params) =>
+        params.value ? new Date(params.value).toLocaleString() : '',
     },
     { field: 'id', editable: false },
     {
@@ -114,7 +150,10 @@ export function getColumnDefs({
           onSendNotification,
           onDelete,
           onImpersonate,
+          onBan,
+          onUnban,
           isSendingNotification,
+          isBanning,
           currentUserId,
         });
       },
