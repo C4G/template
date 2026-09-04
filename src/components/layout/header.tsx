@@ -2,11 +2,13 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useIsMounted } from '@/hooks/use-is-mounted';
 import { useSession } from '@/lib/auth-client';
 import { UserMenu } from './user-menu';
 
 export function Header() {
   const { data } = useSession();
+  const isMounted = useIsMounted();
 
   return (
     <header className='bg-background fixed top-0 right-0 left-0 z-50 flex items-center justify-between border-b px-6 py-4'>
@@ -19,7 +21,7 @@ export function Header() {
             height='32'
           />
         </Link>
-        {data ? (
+        {isMounted && data ? (
           <Link
             href='/dashboard'
             className='hover:text-primary text-sm font-medium'
@@ -27,7 +29,7 @@ export function Header() {
             Dashboard
           </Link>
         ) : null}
-        {data?.user.role === 'ADMIN' ? (
+        {isMounted && data?.user.role === 'ADMIN' ? (
           <Link
             href='/users'
             className='hover:text-primary text-sm font-medium'

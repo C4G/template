@@ -4,18 +4,11 @@ import type { User } from '@prisma/client';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { nextCookies } from 'better-auth/next-js';
-import { customSession } from 'better-auth/plugins';
-import { cookies, headers } from 'next/headers';
+import { admin, customSession } from 'better-auth/plugins';
+import { adminAc, userAc } from 'better-auth/plugins/admin/access';
+import { headers } from 'next/headers';
 
 type UserRole = User['role'];
-
-interface ImpersonatedUser {
-  id: string;
-  name: string | null;
-  email: string;
-  role: UserRole;
-  image: string | null;
-}
 
 /**
  * Passkeys are scoped to this exact hostname, so each app sharing a parent
@@ -59,58 +52,31 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    admin({
+      defaultRole: 'STAFF',
+      adminRoles: ['ADMIN'],
+      // Preserve the existing UI behavior, which allowed admins to
+      // impersonate users regardless of their role.
+      allowImpersonatingAdmins: true,
+      impersonationSessionDuration: 60 * 60 * 24,
+      roles: {
+        ADMIN: adminAc,
+        STAFF: userAc,
+      },
+    }),
     passkey({
       rpID: passkeyRpID,
       rpName: 'Template',
     }),
     customSession(async ({ user, session }) => {
       const dbUser = user as typeof user & { role: UserRole };
-      const sessionUser = {
-        ...user,
-        role: dbUser.role ?? null,
+      return {
+        session,
+        user: {
+          ...user,
+          role: dbUser.role ?? null,
+        },
       };
-
-      // Check for impersonation cookie
-      const cookieStore = await cookies();
-      const impersonatedUserCookie = cookieStore.get('impersonated-user');
-
-      if (impersonatedUserCookie) {
-        try {
-          const impersonationData = JSON.parse(impersonatedUserCookie.value);
-
-          // Destructure impersonation data with fallbacks for backward compatibility
-          const {
-            impersonatedUser: newFormatUser,
-            originalAdminId: newFormatAdminId,
-          } = impersonationData;
-          const impersonatedUser: ImpersonatedUser =
-            newFormatUser ?? impersonationData;
-          const originalAdminId = newFormatAdminId ?? dbUser.id;
-
-          // Verify the original admin is still an admin and matches the current user
-          const isValidImpersonation =
-            originalAdminId === dbUser.id && dbUser.role === 'ADMIN';
-
-          if (isValidImpersonation) {
-            // Override session with impersonated user data
-            return {
-              session,
-              user: {
-                ...sessionUser,
-                id: impersonatedUser.id,
-                name: impersonatedUser.name ?? '',
-                email: impersonatedUser.email,
-                role: impersonatedUser.role,
-                image: impersonatedUser.image || null,
-              },
-            };
-          }
-        } catch {
-          // Invalid cookie, fall through to the original user data
-        }
-      }
-
-      return { session, user: sessionUser };
     }),
     // nextCookies must remain the last plugin
     nextCookies(),
@@ -119,7 +85,7 @@ export const auth = betterAuth({
 
 /**
  * Returns the current session (or null) for server components and route
- * handlers, including the `role` field and any active impersonation override.
+ * handlers, including the `role` and native impersonation fields.
  */
 export async function getSession() {
   return auth.api.getSession({ headers: await headers() });

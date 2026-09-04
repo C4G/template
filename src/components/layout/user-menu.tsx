@@ -19,10 +19,12 @@ import { NotificationSettings } from './notification-settings';
 import { PasskeySettings } from './passkey-settings';
 import { ThemeSwitcher } from './theme-switcher';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMounted } from '@/hooks/use-is-mounted';
 
 export function UserMenu() {
   const router = useRouter();
   const { data: session } = useSession();
+  const isMounted = useIsMounted();
   const { isImpersonating, stopImpersonation } = useImpersonation();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -40,7 +42,7 @@ export function UserMenu() {
     }
   };
 
-  if (!session) {
+  if (!isMounted || !session) {
     return <Button onClick={() => router.push('/signin')}>Sign In</Button>;
   }
 
@@ -101,9 +103,9 @@ export function UserMenu() {
             <span className='grow'>Notifications</span>
           </DropdownMenuItem>
           {/*
-            Passkey endpoints resolve the real session, not the impersonation
-            override, so a passkey added here would attach to the admin's own
-            account. Hide the entry rather than mislead.
+            Better Auth's native impersonation session resolves passkey
+            operations against the impersonated account. Keep this hidden so
+            an admin cannot unintentionally modify the user's credentials.
           */}
           {!isImpersonating && (
             <DropdownMenuItem

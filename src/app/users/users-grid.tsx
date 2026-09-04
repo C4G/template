@@ -18,8 +18,9 @@ import {
   type SortDirection,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useSession } from '@/lib/auth-client';
+import { authClient, useSession } from '@/lib/auth-client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BanUserDialog, type BanUserDetails } from './BanUserDialog';
 import { DeleteUserDialog } from './DeleteUserDialog';
 import { EmailDialog } from './EmailDialog';
 import { defaultColDef, getColumnDefs } from './users-grid-columns';
@@ -39,6 +40,9 @@ export function UsersGrid() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSendingNotification, setIsSendingNotification] = useState(false);
+  const [isBanModalOpen, setIsBanModalOpen] = useState(false);
+  const [userToBan, setUserToBan] = useState<User | null>(null);
+  const [isBanning, setIsBanning] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -129,6 +133,72 @@ export function UsersGrid() {
       });
     }
   };
+  const handleBanAction = (user: User) => {
+    setUserToBan(user);
+    setIsBanModalOpen(true);
+  };
+  const handleUnbanAction = async (user: User) => {
+    setIsBanning(true);
+
+    try {
+      const { error } = await authClient.admin.unbanUser({ userId: user.id });
+      if (error) throw new Error(error.message);
+
+      toast({
+        title: 'User Unbanned',
+        description: `${user.name} can sign in again.`,
+      });
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error unbanning user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to unban user. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsBanning(false);
+    }
+  };
+  const handleBanUser = async ({ banReason, banExpiresAt }: BanUserDetails) => {
+    if (!userToBan) return;
+
+    setIsBanning(true);
+
+    try {
+      const banExpiresIn = banExpiresAt
+        ? Math.ceil((new Date(banExpiresAt).getTime() - Date.now()) / 1000)
+        : undefined;
+
+      if (banExpiresIn !== undefined && banExpiresIn <= 0) {
+        throw new Error('The ban end time must be in the future.');
+      }
+
+      const { error } = await authClient.admin.banUser({
+        userId: userToBan.id,
+        banReason,
+        banExpiresIn,
+      });
+      if (error) throw new Error(error.message);
+
+      toast({
+        title: 'User Banned',
+        description: `${userToBan.name} has been banned.`,
+      });
+      setIsBanModalOpen(false);
+      setUserToBan(null);
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error banning user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to ban user. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsBanning(false);
+    }
+  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -143,7 +213,10 @@ export function UsersGrid() {
     onSendNotification: handleSendNotificationAction,
     onDelete: handleDeleteAction,
     onImpersonate: handleImpersonateAction,
+    onBan: handleBanAction,
+    onUnban: handleUnbanAction,
     isSendingNotification,
+    isBanning,
     currentUserId: session?.user?.id,
   });
 
@@ -476,6 +549,17 @@ export function UsersGrid() {
           setUserToDelete(null);
         }}
         isLoading={isDeleting}
+      />
+      <BanUserDialog
+        key={userToBan?.id ?? 'no-user'}
+        isOpen={isBanModalOpen}
+        onOpenChange={(open) => {
+          setIsBanModalOpen(open);
+          if (!open) setUserToBan(null);
+        }}
+        userToBan={userToBan ? { name: userToBan.name ?? '' } : null}
+        onConfirm={handleBanUser}
+        isLoading={isBanning}
       />
     </div>
   );

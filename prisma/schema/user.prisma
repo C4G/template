@@ -5,6 +5,9 @@ model User {
   emailVerified    Boolean   @default(false)
   image            String?
   role             UserRole?
+  banned           Boolean   @default(false)
+  banReason        String?
+  banExpires       DateTime?
   pushSubscription String?
   accounts         Account[]
   sessions         Session[]
