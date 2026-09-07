@@ -138,6 +138,6 @@ jobs:
           COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
         if: ${{ env.COOLIFY_TOKEN != '' && env.COOLIFY_APP_UUID != '' }}
         run: |
-          curl -fsS -X GET \
+          curl --fail-with-body --silent --show-error --request POST \
             "https://coolify.c4g.dev/api/v1/deploy?uuid=${COOLIFY_APP_UUID}" \
             -H "Authorization: Bearer ${COOLIFY_TOKEN}"
